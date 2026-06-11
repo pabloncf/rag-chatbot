@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Chat — RAG Chatbot{% endblock %}
+{% block body_class %}chat-page{% endblock %}
+
+{% block content %}
+<div id="notification" class="notification"></div>
+
+<header class="app-header">
+  <div class="header-brand">
+    <span class="brand-icon">🤖</span>
+    <h1>RAG <span>Chatbot</span></h1>
+  </div>
+  <div class="header-actions">
+    <button id="new-chat-btn" class="btn btn-ghost btn-sm">New Chat</button>
+    <button id="logout-btn" class="btn btn-ghost btn-sm">Logout</button>
+  </div>
+</header>
+
+<main class="app-main">
+  <!-- Sidebar: Documents -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h2>Documents</h2>
+      <input type="file" id="file-input" accept=".pdf" class="hidden" />
+      <button id="upload-btn" class="btn btn-primary btn-sm">+ Upload PDF</button>
+    </div>
+    <div id="doc-list" class="doc-list">
+      <p class="empty-state">No documents yet.</p>
+    </div>
+  </aside>
+
+  <!-- Chat area -->
+  <section class="chat-area">
+    <div id="messages" class="messages">
+      <div class="welcome-msg">
+        <p>Upload a PDF document and ask questions about its content.</p>
+      </div>
+    </div>
+    <div class="chat-input-bar">
+      <textarea
+        id="chat-input"
+        class="chat-input"
+        placeholder="Ask a question about your documents…"
+        rows="1"
+      ></textarea>
+      <button id="send-btn" class="btn btn-primary send-btn">Send</button>
+    </div>
+  </section>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/app.js' %}"></script>
+{% endblock %}
