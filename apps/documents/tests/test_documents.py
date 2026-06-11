@@ -125,6 +125,27 @@ def test_document_detail_not_found(auth_client):
     assert response.status_code == 404
 
 
+# --- Rate limit ---
+
+@pytest.mark.django_db
+def test_upload_rate_limit_blocks_after_threshold(auth_client, sample_pdf_bytes, settings):
+    settings.CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+    from django.core.cache import cache
+    cache.clear()
+
+    with patch("apps.documents.views.process_document.delay"):
+        for _ in range(5):
+            pdf_file = SimpleUploadedFile("test.pdf", sample_pdf_bytes, content_type="application/pdf")
+            resp = auth_client.post(UPLOAD_URL, {"file": pdf_file}, format="multipart")
+            assert resp.status_code == 201
+
+        pdf_file = SimpleUploadedFile("test.pdf", sample_pdf_bytes, content_type="application/pdf")
+        resp = auth_client.post(UPLOAD_URL, {"file": pdf_file}, format="multipart")
+
+    assert resp.status_code == 429
+    assert "rate limit" in resp.json()["message"].lower()
+
+
 # --- Service unit tests ---
 
 def test_pdf_parser(tmp_path, sample_pdf_bytes):

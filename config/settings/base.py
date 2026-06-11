@@ -27,6 +27,7 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
+    "corsheaders",
 ]
 
 LOCAL_APPS: list[str] = [
@@ -39,6 +40,7 @@ LOCAL_APPS: list[str] = [
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -47,6 +49,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "config.middleware.SecurityHeadersMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -118,6 +121,10 @@ SIMPLE_JWT = {
 CHROMA_PERSIST_DIRECTORY = env("CHROMA_PERSIST_DIRECTORY", default="/app/chroma_data")
 ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
 REDIS_URL = env("REDIS_URL", default="redis://localhost:6379/0")
+MAX_UPLOAD_SIZE = env.int("MAX_UPLOAD_SIZE", default=10 * 1024 * 1024)  # 10 MB
+
+# CORS — restrict to API endpoints; origins configured per environment
+CORS_URLS_REGEX = r"^/api/.*"
 
 CACHES = {
     "default": {

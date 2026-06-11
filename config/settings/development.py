@@ -7,6 +7,8 @@ ALLOWED_HOSTS = ["*"]
 # Serve static files from STATICFILES_DIRS without running collectstatic
 WHITENOISE_USE_FINDERS = True
 
+CORS_ALLOW_ALL_ORIGINS = True
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

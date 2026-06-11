@@ -116,6 +116,54 @@ def test_me_without_token(api_client):
     assert response.status_code == 401
 
 
+# --- Rate limits ---
+
+@pytest.mark.django_db
+def test_login_rate_limit_blocks_after_threshold(api_client, registered_user, settings):
+    settings.CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+    from django.core.cache import cache
+    cache.clear()
+
+    for _ in range(10):
+        resp = api_client.post(
+            LOGIN_URL,
+            {"email": "existing@example.com", "password": VALID_PASSWORD},
+            format="json",
+        )
+        assert resp.status_code == 200
+
+    resp = api_client.post(
+        LOGIN_URL,
+        {"email": "existing@example.com", "password": VALID_PASSWORD},
+        format="json",
+    )
+    assert resp.status_code == 429
+    assert "login attempts" in resp.json()["message"].lower()
+
+
+@pytest.mark.django_db
+def test_register_rate_limit_blocks_after_threshold(api_client, settings):
+    settings.CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+    from django.core.cache import cache
+    cache.clear()
+
+    for i in range(5):
+        resp = api_client.post(
+            REGISTER_URL,
+            {"email": f"new{i}@example.com", "password": VALID_PASSWORD, "password_confirm": VALID_PASSWORD},
+            format="json",
+        )
+        assert resp.status_code == 201
+
+    resp = api_client.post(
+        REGISTER_URL,
+        {"email": "blocked@example.com", "password": VALID_PASSWORD, "password_confirm": VALID_PASSWORD},
+        format="json",
+    )
+    assert resp.status_code == 429
+    assert "registration attempts" in resp.json()["message"].lower()
+
+
 # --- Token refresh ---
 
 @pytest.mark.django_db

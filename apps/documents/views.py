@@ -1,5 +1,7 @@
 import os
 
+from django.conf import settings
+from django_ratelimit.core import is_ratelimited
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import IsAuthenticated
@@ -11,7 +13,6 @@ from .models import Document
 from .serializers import DocumentSerializer, DocumentUploadSerializer
 from .tasks import process_document
 
-MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
 PDF_MAGIC_BYTES = b"%PDF"
 
 
@@ -21,8 +22,9 @@ def _validate_pdf(file) -> str | None:
         return "Only PDF files are allowed."
     if file.content_type != "application/pdf":
         return "Invalid content type. Expected application/pdf."
-    if file.size > MAX_UPLOAD_SIZE:
-        return "File size exceeds the 10 MB limit."
+    max_size = getattr(settings, "MAX_UPLOAD_SIZE", 10 * 1024 * 1024)
+    if file.size > max_size:
+        return f"File size exceeds the {max_size // (1024 * 1024)} MB limit."
     header = file.read(4)
     file.seek(0)
     if header != PDF_MAGIC_BYTES:
@@ -35,6 +37,19 @@ class DocumentUploadView(APIView):
     parser_classes = [MultiPartParser]
 
     def post(self, request: Request) -> Response:
+        if is_ratelimited(
+            request,
+            group="upload-post",
+            key=lambda _g, r: str(r.user.pk),
+            rate="5/m",
+            method="POST",
+            increment=True,
+        ):
+            return Response(
+                {"status": "error", "data": {}, "message": "Upload rate limit exceeded. Try again in a minute."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
         serializer = DocumentUploadSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(

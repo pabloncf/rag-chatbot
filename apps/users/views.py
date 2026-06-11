@@ -1,4 +1,5 @@
 from django.contrib.auth import authenticate
+from django_ratelimit.core import is_ratelimited
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
@@ -10,10 +11,20 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import RegisterSerializer, UserDetailSerializer
 
 
+def _check_ip_rate_limit(request: Request, group: str, rate: str) -> bool:
+    return is_ratelimited(request, group=group, key="ip", rate=rate, method="POST", increment=True)
+
+
 class RegisterView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request: Request) -> Response:
+        if _check_ip_rate_limit(request, group="auth-register", rate="5/m"):
+            return Response(
+                {"status": "error", "data": {}, "message": "Too many registration attempts. Try again in a minute."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
         serializer = RegisterSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(
@@ -39,6 +50,12 @@ class LoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request: Request) -> Response:
+        if _check_ip_rate_limit(request, group="auth-login", rate="10/m"):
+            return Response(
+                {"status": "error", "data": {}, "message": "Too many login attempts. Try again in a minute."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
         email = request.data.get("email", "")
         password = request.data.get("password", "")
         user = authenticate(request, username=email, password=password)

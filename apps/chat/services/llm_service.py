@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 import anthropic
 from django.conf import settings
 
@@ -7,6 +9,19 @@ from apps.embeddings.services.vector_store import SearchResult
 
 MODEL = "claude-sonnet-4-6"
 MAX_TOKENS = 1024
+MAX_QUESTION_LENGTH = 2000
+
+_INJECTION_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(r"ignore\s+(all\s+)?previous\s+instructions?", re.IGNORECASE),
+    re.compile(r"disregard\s+(all\s+)?previous\s+instructions?", re.IGNORECASE),
+    re.compile(r"forget\s+(all\s+)?previous\s+instructions?", re.IGNORECASE),
+    re.compile(r"you\s+are\s+now\s+(?:a|an)\s+", re.IGNORECASE),
+    re.compile(r"act\s+as\s+(?:a|an)\s+", re.IGNORECASE),
+    re.compile(r"<\s*/?system\s*>", re.IGNORECASE),
+    re.compile(r"<\s*/?prompt\s*>", re.IGNORECASE),
+    re.compile(r"\[/?INST\]"),
+    re.compile(r"<</?SYS>>"),
+]
 
 SYSTEM_PROMPT = """You are a helpful assistant that answers questions strictly based on the provided document context.
 
@@ -15,6 +30,14 @@ Rules:
 - If the context does not contain sufficient information, state that clearly.
 - Be concise and accurate.
 - When referencing specific facts, mention the source page number when available."""
+
+
+def sanitize_input(text: str) -> str:
+    """Truncate and strip prompt-injection patterns from user input."""
+    text = text[:MAX_QUESTION_LENGTH]
+    for pattern in _INJECTION_PATTERNS:
+        text = pattern.sub("[removed]", text)
+    return text.strip()
 
 
 def answer(
@@ -27,6 +50,8 @@ def answer(
 
     sources is a list of {chunk_id, document_id, page_number} for each chunk used.
     """
+    question = sanitize_input(question)
+
     if not chunks:
         return (
             "I couldn't find relevant information in your documents to answer this question.",
