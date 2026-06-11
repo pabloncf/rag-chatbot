@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 @shared_task(bind=True, max_retries=3)
 def process_document(self, document_id: int) -> None:
-    """Parse PDF, split into chunks, and persist to database."""
+    """Parse PDF, split into chunks, generate embeddings, and store in ChromaDB."""
     Document = apps.get_model("documents", "Document")
     DocumentChunk = apps.get_model("documents", "DocumentChunk")
 
@@ -21,12 +21,10 @@ def process_document(self, document_id: int) -> None:
         from .services.pdf_parser import parse_pdf
 
         pages, page_count = parse_pdf(document.file.path)
-
         document.page_count = page_count
         document.save(update_fields=["page_count", "updated_at"])
 
         chunks = chunk_pages(pages)
-
         DocumentChunk.objects.bulk_create(
             [
                 DocumentChunk(
@@ -39,10 +37,34 @@ def process_document(self, document_id: int) -> None:
             ]
         )
 
+        from apps.embeddings.services.embedding_service import encode
+        from apps.embeddings.services.vector_store import add_documents
+
+        db_chunks = list(DocumentChunk.objects.filter(document=document).order_by("chunk_index"))
+        embeddings = encode([c.content for c in db_chunks])
+
+        add_documents(
+            document_id=document.pk,
+            chunks=[
+                {
+                    "chunk_id": db_chunk.pk,
+                    "content": db_chunk.content,
+                    "page_number": db_chunk.page_number,
+                    "embedding": embedding,
+                }
+                for db_chunk, embedding in zip(db_chunks, embeddings)
+            ],
+        )
+
         document.status = Document.Status.READY
         document.save(update_fields=["status", "updated_at"])
 
-        logger.info("Document %d processed: %d chunks created.", document_id, len(chunks))
+        logger.info(
+            "Document %d processed: %d chunks, %d embeddings stored.",
+            document_id,
+            len(db_chunks),
+            len(embeddings),
+        )
 
     except Document.DoesNotExist:
         logger.error("Document %d not found.", document_id)
