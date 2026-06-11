@@ -33,6 +33,7 @@ LOCAL_APPS: list[str] = [
     "apps.users",
     "apps.documents",
     "apps.embeddings",
+    "apps.chat",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -115,6 +116,13 @@ SIMPLE_JWT = {
 CHROMA_PERSIST_DIRECTORY = env("CHROMA_PERSIST_DIRECTORY", default="/app/chroma_data")
 ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
 REDIS_URL = env("REDIS_URL", default="redis://localhost:6379/0")
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL,
+    }
+}
 
 # Celery
 CELERY_BROKER_URL = REDIS_URL
