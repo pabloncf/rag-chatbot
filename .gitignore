@@ -30,6 +30,7 @@ staticfiles/
 .env
 .env.*
 !.env.example
+!.env.ci
 
 # Docker
 .docker/
