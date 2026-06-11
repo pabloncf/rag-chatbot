@@ -31,6 +31,7 @@ THIRD_PARTY_APPS = [
 
 LOCAL_APPS: list[str] = [
     "apps.users",
+    "apps.documents",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -93,7 +94,10 @@ AUTH_USER_MODEL = "users.CustomUser"
 
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
-    "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
+    "DEFAULT_PARSER_CLASSES": [
+        "rest_framework.parsers.JSONParser",
+        "rest_framework.parsers.MultiPartParser",
+    ],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -109,3 +113,11 @@ SIMPLE_JWT = {
 
 ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
 REDIS_URL = env("REDIS_URL", default="redis://localhost:6379/0")
+
+# Celery
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = REDIS_URL
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "UTC"

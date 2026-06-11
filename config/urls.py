@@ -15,4 +15,5 @@ def health_check(request):
 urlpatterns = [
     path("api/health/", health_check, name="health-check"),
     path("api/auth/", include("apps.users.urls")),
+    path("api/documents/", include("apps.documents.urls")),
 ]
